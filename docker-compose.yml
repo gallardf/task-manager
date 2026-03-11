@@ -1,0 +1,70 @@
+version: "3.8"
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  task-service:
+    build: ./task-service
+    command: >
+      sh -c "python manage.py makemigrations users tasks &&
+             python manage.py migrate &&
+             python manage.py seed_roles &&
+             python manage.py create_admin --username $$ADMIN_USERNAME --password $$ADMIN_PASSWORD &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./task-service:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - ADMIN_USERNAME=${ADMIN_USERNAME}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD}
+      - DEBUG=${DEBUG}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  analytics-service:
+    build: ./analytics-service
+    command: >
+      sh -c "python manage.py runserver 0.0.0.0:8001"
+    volumes:
+      - ./analytics-service:/app
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY}
+      - DEBUG=${DEBUG}
+    depends_on:
+      task-service:
+        condition: service_started
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_URL=${VITE_API_URL}
+      - VITE_ANALYTICS_URL=${VITE_ANALYTICS_URL}
+    depends_on:
+      - task-service
+      - analytics-service
+
+volumes:
+  db_data:
