@@ -24,7 +24,7 @@
       </div>
 
       <div class="navbar-user">
-        <span class="user-email">{{ auth.user?.username }}</span>
+        <router-link to="/profile" class="user-link">{{ auth.user?.username }}</router-link>
         <button class="btn-logout" @click="handleLogout">Déconnexion</button>
       </div>
     </div>
@@ -101,9 +101,15 @@ function handleLogout() {
   gap: 12px;
 }
 
-.user-email {
+.user-link {
   color: #94a3b8;
   font-size: 0.85rem;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.user-link:hover {
+  color: #e2e8f0;
 }
 
 .btn-logout {

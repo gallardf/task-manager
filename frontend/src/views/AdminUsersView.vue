@@ -61,6 +61,7 @@
         <tr>
           <th>ID</th>
           <th>Utilisateur</th>
+          <th>Email</th>
           <th>Prénom</th>
           <th>Nom</th>
           <th>Rôle</th>
@@ -72,8 +73,36 @@
         <tr v-for="user in users" :key="user.id">
           <td>{{ user.id }}</td>
           <td>{{ user.username }}</td>
-          <td>{{ user.first_name }}</td>
-          <td>{{ user.last_name }}</td>
+          <td>
+            <input
+              class="inline-input"
+              v-model="user.email"
+              type="email"
+              placeholder="email"
+              @blur="updateField(user, 'email', user.email)"
+              @keyup.enter="$event.target.blur()"
+            />
+          </td>
+          <td>
+            <input
+              class="inline-input"
+              v-model="user.first_name"
+              type="text"
+              placeholder="Prénom"
+              @blur="updateField(user, 'first_name', user.first_name)"
+              @keyup.enter="$event.target.blur()"
+            />
+          </td>
+          <td>
+            <input
+              class="inline-input"
+              v-model="user.last_name"
+              type="text"
+              placeholder="Nom"
+              @blur="updateField(user, 'last_name', user.last_name)"
+              @keyup.enter="$event.target.blur()"
+            />
+          </td>
           <td>
             <select
               :value="user.role"
@@ -94,8 +123,15 @@
               {{ user.is_active ? 'Actif' : 'Inactif' }}
             </button>
           </td>
-          <td>
+          <td class="actions-cell">
             <span v-if="user._saving" class="saving-indicator">...</span>
+            <button
+              v-if="user.role_name !== 'admin'"
+              class="btn-delete"
+              @click="deleteUser(user)"
+            >
+              Supprimer
+            </button>
           </td>
         </tr>
       </tbody>
@@ -171,6 +207,18 @@ async function createUser() {
   }
 }
 
+async function updateField(user, field, value) {
+  user._saving = true
+  try {
+    await authApi.patch(`/api/users/${user.id}/`, { [field]: value })
+  } catch (error) {
+    console.error(`Failed to update ${field}:`, error)
+    alert(`Erreur lors de la mise à jour de ${field}`)
+  } finally {
+    user._saving = false
+  }
+}
+
 async function updateRole(user, newRole) {
   user._saving = true
   try {
@@ -180,6 +228,20 @@ async function updateRole(user, newRole) {
   } catch (error) {
     console.error('Failed to update role:', error)
     alert('Erreur lors de la mise à jour du rôle')
+  } finally {
+    user._saving = false
+  }
+}
+
+async function deleteUser(user) {
+  if (!confirm(`Supprimer l'utilisateur "${user.username}" ?`)) return
+  user._saving = true
+  try {
+    await authApi.delete(`/api/users/${user.id}/`)
+    users.value = users.value.filter(u => u.id !== user.id)
+  } catch (error) {
+    const detail = error.response?.data?.detail
+    alert(detail || "Erreur lors de la suppression")
   } finally {
     user._saving = false
   }
@@ -337,6 +399,28 @@ async function toggleActive(user) {
   background: #f8fafc;
 }
 
+.inline-input {
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 0.85rem;
+  background: transparent;
+  width: 100%;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.inline-input:hover {
+  border-color: #d1d5db;
+  background: #fff;
+}
+
+.inline-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
 .role-select {
   padding: 6px 10px;
   border: 1px solid #d1d5db;
@@ -364,7 +448,29 @@ async function toggleActive(user) {
   color: #dc2626;
 }
 
+.actions-cell {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .saving-indicator {
   color: #94a3b8;
+}
+
+.btn-delete {
+  padding: 4px 12px;
+  border: 1px solid #f87171;
+  border-radius: 6px;
+  background: transparent;
+  color: #dc2626;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-delete:hover {
+  background: #fef2f2;
 }
 </style>

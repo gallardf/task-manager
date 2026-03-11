@@ -6,6 +6,7 @@ import DashboardView from '@/views/DashboardView.vue'
 import TaskListView from '@/views/TaskListView.vue'
 import TaskFormView from '@/views/TaskFormView.vue'
 import AdminUsersView from '@/views/AdminUsersView.vue'
+import ProfileView from '@/views/ProfileView.vue'
 
 const routes = [
   {
@@ -41,6 +42,12 @@ const routes = [
     name: 'TaskEdit',
     component: TaskFormView,
     meta: { requiresAuth: true, requiredPermission: 'task:update' }
+  },
+  {
+    path: '/profile',
+    name: 'Profile',
+    component: ProfileView,
+    meta: { requiresAuth: true }
   },
   {
     path: '/admin/users',

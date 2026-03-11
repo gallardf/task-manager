@@ -13,6 +13,7 @@ from .serializers import (
     UserSerializer,
     UserCreateSerializer,
     UserUpdateSerializer,
+    UserSelfUpdateSerializer,
 )
 
 
@@ -21,13 +22,17 @@ class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
 
-class MeView(generics.RetrieveAPIView):
+class MeView(generics.RetrieveUpdateAPIView):
     """Return the currently authenticated user."""
-    serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
         return self.request.user
+
+    def get_serializer_class(self):
+        if self.request.method in ("PUT", "PATCH"):
+            return UserSelfUpdateSerializer
+        return UserSerializer
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -42,7 +47,7 @@ class UserViewSet(viewsets.ModelViewSet):
         return UserSerializer
 
     def get_permissions(self):
-        if self.action in ("list", "create", "update", "partial_update", "destroy"):
+        if self.action in ("create", "update", "partial_update", "destroy"):
             return [IsAdmin()]
         return [IsAuthenticated()]
 

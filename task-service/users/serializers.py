@@ -74,3 +74,10 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         if value.lower() == "admin":
             raise serializers.ValidationError("Le nom d'utilisateur 'admin' est réservé.")
         return value
+
+class UserSelfUpdateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ["id", "email", "first_name", "last_name"]
+        read_only_fields = ["id"]
