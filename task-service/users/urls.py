@@ -13,5 +13,4 @@ urlpatterns = [
     path("users/me/", views.MeView.as_view(), name="me"),
     path("", include(router.urls)),
     path("roles/", views.RoleListView.as_view(), name="role-list"),
-    path("internal/validate-token/", views.ValidateTokenView.as_view(), name="validate-token"),
 ]
