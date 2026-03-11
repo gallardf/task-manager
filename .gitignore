@@ -56,3 +56,4 @@ coverage.xml
 *.tmp
 .claude/
 CONTEXT.md
+nginx/ssl/

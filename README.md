@@ -61,23 +61,42 @@ Application de gestion de tâches avec gestion des utilisateurs et des permissio
 ### Démarrage
 
 ```bash
-# 1. Copier et adapter le fichier d'environnement
-cp .env.example .env
+# 1. Cloner le projet
+git clone <url-du-repo>
+cd task-manager
 
-# 2. Lancer les services
-docker-compose up --build
+# 2. Copier et adapter le fichier d'environnement
+cp .env.example .env
+# Éditer le .env avec vos propres valeurs (passwords, secret key, etc.)
+
+# 3. Lancer en mode développement
+docker compose up --build -d
 ```
 
-Les migrations, le seeding des rôles/permissions, et la création du compte admin sont automatiques.
-Les identifiants admin sont configurés dans le `.env` (`ADMIN_USERNAME` / `ADMIN_PASSWORD`).
+### Lancement en production
+
+```bash
+# 1. Générer le certificat SSL (auto-signé pour test, Let's Encrypt pour la prod)
+mkdir -p nginx/ssl
+openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+  -keyout nginx/ssl/privkey.pem \
+  -out nginx/ssl/fullchain.pem \
+  -subj "/CN=localhost"
+
+# 2. Lancer en mode production
+docker-compose -f docker compose.prod.yml up --build -d
+```
+
+En production, Nginx sert le frontend en statique et fait reverse proxy vers les services Django (Gunicorn). Seuls les ports 80 (redirige vers HTTPS) et 443 sont exposés.
 
 ### Accès
 
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:5173 |
-| Task API (auth + tâches) | http://localhost:8000/api/ |
-| Analytics API | http://localhost:8001/api/ |
+| Mode | Service | URL |
+|------|---------|-----|
+| Dev | Frontend | http://localhost:5173 |
+| Dev | Task API | http://localhost:8000/api/ |
+| Dev | Analytics API | http://localhost:8001/api/ |
+| Prod | Tout (via Nginx) | https://localhost |
 
 ### Compte admin par défaut
 
