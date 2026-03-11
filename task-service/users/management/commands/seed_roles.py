@@ -33,8 +33,8 @@ class Command(BaseCommand):
         # --- Roles ---
         role_definitions = {
             "admin": list(permissions.keys()),
-            "manager": ["task:create", "task:read", "task:update", "task:delete", "analytics:read"],
-            "member": ["task:create", "task:read", "task:update"],
+            "manager": ["task:create", "task:read", "task:update", "task:delete", "analytics:read", "users.read"],
+            "member": ["task:create", "task:read", "task:update", "analytics:read", "users.read"],
             "viewer": ["task:read", "analytics:read"],
         }
 
