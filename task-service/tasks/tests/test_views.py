@@ -56,7 +56,7 @@ class TaskViewSetTest(TestCase):
         """User with task:create permission can create a task."""
         response = self.client.post(
             "/api/tasks/",
-            {"title": "New task", "description": "Description"},
+            {"title": "New task", "description": "Description", "assigned_to": self.member_user.id},
             format="json",
             **self._auth(self.admin_token),
         )

@@ -58,7 +58,7 @@ class PermissionTest(TestCase):
         token = self._create_user_with_perms("creator", ["task:create"])
         response = self.client.post(
             "/api/tasks/",
-            {"title": "Allowed task"},
+            {"title": "Allowed task", "assigned_to": 1},
             format="json",
             **self._auth(token),
         )

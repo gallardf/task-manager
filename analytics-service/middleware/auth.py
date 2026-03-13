@@ -9,7 +9,9 @@ class JWTAuthMiddleware:
     Exempts health check path.
     """
 
-    EXEMPT_PATHS = ["/api/health/"]
+    EXEMPT_PATHS = ["/api/health/",
+                    "/api/analytics/docs",
+                    "/api/analytics/schema"]
 
     def __init__(self, get_response):
         self.get_response = get_response

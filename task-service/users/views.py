@@ -3,6 +3,7 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework_simplejwt.views import TokenObtainPairView
+from drf_spectacular.utils import extend_schema, extend_schema_view
 
 from .models import User, Role
 from .permissions import IsAdmin
@@ -16,13 +17,15 @@ from .serializers import (
 )
 
 
+@extend_schema(tags=["Auth"])
 class CustomTokenObtainPairView(TokenObtainPairView):
-    """Custom login view with extended JWT payload."""
+    """Authentification par username/password. Retourne un access token (15 min) et un refresh token (7 jours)."""
     serializer_class = CustomTokenObtainPairSerializer
 
 
+@extend_schema(tags=["Users"])
 class MeView(generics.RetrieveUpdateAPIView):
-    """Return the currently authenticated user."""
+    """Profil de l'utilisateur connecté. GET pour consulter, PATCH pour modifier (email, prénom, nom)."""
     permission_classes = [IsAuthenticated]
 
     def get_object(self):
@@ -34,8 +37,16 @@ class MeView(generics.RetrieveUpdateAPIView):
         return UserSerializer
 
 
+@extend_schema_view(
+    list=extend_schema(summary="Lister les utilisateurs", tags=["Users"]),
+    create=extend_schema(summary="Créer un utilisateur", tags=["Users"]),
+    retrieve=extend_schema(summary="Détail d'un utilisateur", tags=["Users"]),
+    update=extend_schema(summary="Modifier un utilisateur", tags=["Users"]),
+    partial_update=extend_schema(summary="Modifier partiellement un utilisateur", tags=["Users"]),
+    destroy=extend_schema(summary="Supprimer un utilisateur", tags=["Users"]),
+)
 class UserViewSet(viewsets.ModelViewSet):
-    """CRUD operations on users (admin-only except retrieve)."""
+    """CRUD des utilisateurs. Création, modification et suppression réservées à l'admin."""
     queryset = User.objects.select_related("role").all()
 
     def get_serializer_class(self):
@@ -64,15 +75,19 @@ class UserViewSet(viewsets.ModelViewSet):
             raise serializers.ValidationError({"detail": "L'administrateur principal ne peut pas être supprimé."})
         instance.delete()
 
+    @extend_schema(
+        summary="Permissions d'un utilisateur",
+        tags=["Users"],
+        responses={200: {"type": "object", "properties": {"permissions": {"type": "array", "items": {"type": "string"}}}}},
+    )
     @action(detail=True, methods=["get"])
     def permissions(self, request, pk=None):
         user = self.get_object()
         return Response({"permissions": user.permissions})
 
 
+@extend_schema(tags=["Roles"])
 class RoleListView(generics.ListAPIView):
-    """List all available roles."""
+    """Liste des rôles disponibles avec leurs permissions."""
     queryset = Role.objects.all()
     serializer_class = RoleSerializer
-
-

@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "django_filters",
+    "drf_spectacular",
     # Local
     "users",
     "tasks",
@@ -104,6 +105,21 @@ REST_FRAMEWORK = {
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+}
+
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Task Manager API",
+    "DESCRIPTION": "Service principal : authentification, gestion des utilisateurs et des tâches.",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    "COMPONENT_SPLIT_REQUEST": True,
+    "TAGS": [
+        {"name": "Auth", "description": "Authentification (login, refresh)"},
+        {"name": "Users", "description": "Gestion des utilisateurs (admin)"},
+        {"name": "Tasks", "description": "CRUD des tâches"},
+        {"name": "Roles", "description": "Liste des rôles disponibles"},
+    ],
 }
 
 SIMPLE_JWT = {

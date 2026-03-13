@@ -5,6 +5,7 @@ from rest_framework import serializers as drf_serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from drf_spectacular.utils import extend_schema
 
 from tasks.models import Task, TaskStatus, User
 from .serializers import StatusSummarySerializer, UserSummarySerializer
@@ -16,11 +17,16 @@ class TaskSerializer(drf_serializers.ModelSerializer):
         fields = "__all__"
 
 
+@extend_schema(tags=["Analytics"])
 class SummaryView(APIView):
-    """GET: task count grouped by status."""
+    """Nombre de tâches groupées par statut (todo, in_progress, done, cancelled)."""
     authentication_classes = []
     permission_classes = []
 
+    @extend_schema(
+        summary="Résumé par statut",
+        responses={200: StatusSummarySerializer(many=True)},
+    )
     def get(self, request):
         if "analytics:read" not in getattr(request, "user_permissions", []):
             raise PermissionDenied(detail="Permission 'analytics:read' requise.")
@@ -30,11 +36,16 @@ class SummaryView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(tags=["Analytics"])
 class ByUserView(APIView):
-    """GET: task count grouped by assigned_to user."""
+    """Nombre de tâches groupées par utilisateur assigné."""
     authentication_classes = []
     permission_classes = []
 
+    @extend_schema(
+        summary="Tâches par utilisateur",
+        responses={200: UserSummarySerializer(many=True)},
+    )
     def get(self, request):
         if "analytics:read" not in getattr(request, "user_permissions", []):
             raise PermissionDenied(detail="Permission 'analytics:read' requise.")
@@ -54,11 +65,16 @@ class ByUserView(APIView):
         return Response(serializer.data)
 
 
+@extend_schema(tags=["Analytics"])
 class OverdueView(APIView):
-    """GET: list of overdue tasks (due_date < today, not done/cancelled)."""
+    """Liste des tâches en retard (date d'échéance dépassée, ni terminées ni annulées)."""
     authentication_classes = []
     permission_classes = []
 
+    @extend_schema(
+        summary="Tâches en retard",
+        responses={200: TaskSerializer(many=True)},
+    )
     def get(self, request):
         if "analytics:read" not in getattr(request, "user_permissions", []):
             raise PermissionDenied(detail="Permission 'analytics:read' requise.")

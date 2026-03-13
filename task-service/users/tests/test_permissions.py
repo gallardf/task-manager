@@ -44,12 +44,13 @@ class PermissionTests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-    def test_member_cannot_list_users(self):
+    def test_member_can_list_users(self):
+        """Members can list users (needed for task assignment dropdown)."""
         token = self._login("member", "member123")
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {token}")
         url = reverse("user-list")
         response = self.client.get(url)
-        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def test_admin_can_update_user_role(self):
         token = self._login("admin", "admin123")
