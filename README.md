@@ -1,64 +1,59 @@
-# Task Manager - Géofoncier
+# Task Manager
 
-Application de gestion de tâches avec gestion des utilisateurs et des permissions, construite en architecture microservices.
+Application de gestion de tâches avec authentification, gestion des rôles et tableau de bord analytique, construite en architecture microservices.
 
 ## Architecture
 
 ```
-                        +------------------+
-                        |    Frontend      |
-                        |  Vue 3 (Vite)    |
-                        |   :5173          |
-                        +--------+---------+
-                                 |
-                  +--------------+--------------+
-                  |                             |
-          +-------v--------+          +--------v--------+
-          |  Task Service   |          | Analytics Service|
-          |  Django + DRF   |          |  Django + DRF   |
-          | Auth + Tâches   |          | Consultation    |
-          |    :8000        |          |    :8001        |
-          +-------+--------+          +--------+--------+
-                  |                             |
-                  +--------------+--------------+
-                                 |
-                        +--------v--------+
-                        |   PostgreSQL 16  |
-                        |     :5432        |
-                        +-----------------+
+                        ┌──────────────────┐
+                        │    Frontend      │
+                        │  Vue 3 + Vite    │
+                        │     :5173        │
+                        └────────┬─────────┘
+                                 │
+                  ┌──────────────┴──────────────┐
+                  │                             │
+          ┌───────▼────────┐          ┌────────▼─────────┐
+          │  Task Service  │          │ Analytics Service │
+          │  Django + DRF  │          │   Django + DRF    │
+          │ Auth + Tâches  │          │ Consultation (RO) │
+          │    :8000       │          │     :8001         │
+          └───────┬────────┘          └────────┬──────────┘
+                  │                            │
+                  └──────────────┬─────────────┘
+                                 │
+                        ┌────────▼────────┐
+                        │  PostgreSQL 16  │
+                        │     :5432       │
+                        └─────────────────┘
 ```
 
-**Deux services backend distincts :**
-1. **Task Service (port 8000)** — Service principal : authentification (JWT), gestion des utilisateurs, CRUD des tâches
-2. **Analytics Service (port 8001)** — Service de consultation/analyse : statistiques par statut, par utilisateur, tâches en retard
+Le projet est composé de **deux services backend distincts** :
 
-**Flux d'authentification :**
-1. Le frontend s'authentifie via le task-service (JWT avec simplejwt)
-2. Le token JWT contient le username, le rôle et les permissions de l'utilisateur
-3. L'analytics-service décode le JWT localement (secret partagé) pour vérifier les droits
-4. Aucun appel inter-service n'est nécessaire pour les opérations courantes
+1. **Task Service** (port 8000) -- Service principal : authentification JWT, gestion des utilisateurs et CRUD des taches
+2. **Analytics Service** (port 8001) -- Service de consultation : statistiques par statut, par utilisateur, taches en retard. Lecture seule sur la base partagee
+
+Les deux services partagent une base PostgreSQL. L'analytics-service utilise des modeles Django `managed = False` pour lire les tables sans gerer les migrations.
 
 ## Choix techniques
 
 | Choix | Justification |
 |-------|---------------|
-| **2 services Django séparés** | Séparation commande (task-service) / consultation (analytics-service), pattern CQRS |
-| **1 base PostgreSQL partagée** | Les deux services lisent les mêmes données ; l'analytics-service utilise `managed = False` pour ne pas gérer les migrations |
-| **JWT avec permissions dans le payload** | L'analytics-service vérifie les droits sans appeler le task-service. Trade-off : tokens courts (15 min) |
-| **simplejwt (task-service)** | Gestion complète des tokens (access + refresh) intégrée à DRF |
-| **PyJWT (analytics-service)** | Décodage léger du JWT via middleware custom, pas besoin de DRF auth complet |
-| **Django + DRF** | Framework mature, ORM puissant, DRF idéal pour les APIs REST |
-| **Vue 3 + Composition API** | Framework réactif moderne, Composition API pour une meilleure réutilisabilité |
-| **Pinia** | State management officiel Vue 3, plus simple que Vuex |
-| **IntegerField pour assigned_to/created_by** | Références cross-service sans FK (conséquence de l'architecture microservices) |
-| **Logique métier dans services.py** | Séparation des concerns : vues légères, logique testable isolément |
+| **2 services Django** | Separation commande/consultation (CQRS). Le task-service ecrit, l'analytics-service lit et agrege |
+| **1 base PostgreSQL partagee** | Les deux services lisent les memes donnees. `managed = False` evite les conflits de migrations |
+| **JWT avec permissions embarquees** | L'analytics-service verifie les droits sans appeler le task-service (stateless) |
+| **simplejwt** (task-service) | Integration native DRF, gestion access + refresh tokens |
+| **PyJWT** (analytics-service) | Decodage leger via middleware custom, pas besoin de DRF auth complet |
+| **Vue 3 Composition API + Pinia** | Frontend reactif, store type-safe, interceptors Axios pour le refresh automatique |
+| **IntegerField pour assigned_to/created_by** | References utilisateurs sans FK pour decoupler les modeles entre services |
+| **seed_roles (management command)** | Roles et permissions crees au demarrage via `get_or_create`, idempotent et relancable |
+| **drf-spectacular** | Documentation OpenAPI/Swagger auto-generee pour les deux services |
 
-## Installation et lancement
+## Prerequis
 
-### Prérequis
 - Docker et Docker Compose
 
-### Démarrage
+## Demarrage rapide
 
 ```bash
 # 1. Cloner le projet
@@ -67,121 +62,179 @@ cd task-manager
 
 # 2. Copier et adapter le fichier d'environnement
 cp .env.example .env
-# Éditer le .env avec vos propres valeurs (passwords, secret key, etc.)
 
-# 3. Lancer en mode développement
+# 3. Lancer
 docker compose up --build -d
 ```
 
-### Lancement en production
+Au demarrage, le task-service :
+1. Genere les migrations (`makemigrations`)
+2. Applique les migrations (`migrate`)
+3. Cree les roles et permissions (`seed_roles`)
+4. Cree le compte admin depuis les variables `.env` (`create_admin`)
+
+## Lancement en production
 
 ```bash
-# 1. Générer le certificat SSL (auto-signé pour test, Let's Encrypt pour la prod)
+# 1. Generer un certificat SSL auto-signe (ou utiliser Let's Encrypt)
 mkdir -p nginx/ssl
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
   -keyout nginx/ssl/privkey.pem \
   -out nginx/ssl/fullchain.pem \
   -subj "/CN=localhost"
 
-# 2. Lancer en mode production
-docker-compose -f docker compose.prod.yml up --build -d
+# 2. Lancer avec le compose de production
+docker compose -f docker-compose.prod.yml up --build -d
 ```
 
-En production, Nginx sert le frontend en statique et fait reverse proxy vers les services Django (Gunicorn). Seuls les ports 80 (redirige vers HTTPS) et 443 sont exposés.
+En production, Nginx sert le frontend en statique et fait reverse proxy vers les services Django (Gunicorn). Seuls les ports 80 (redirige vers 443) et 443 sont exposes.
 
-### Accès
+## Acces
 
 | Mode | Service | URL |
 |------|---------|-----|
 | Dev | Frontend | http://localhost:5173 |
 | Dev | Task API | http://localhost:8000/api/ |
-| Dev | Analytics API | http://localhost:8001/api/ |
+| Dev | Task API Docs | http://localhost:8000/api/docs/ |
+| Dev | Analytics API | http://localhost:8001/api/analytics/ |
+| Dev | Analytics API Docs | http://localhost:8001/api/analytics/docs/ |
 | Prod | Tout (via Nginx) | https://localhost |
 
-### Compte admin par défaut
+### Compte admin par defaut
 
-Les identifiants sont définis dans `.env` (voir `.env.example`) :
+Configurable dans `.env` :
 
-| Variable | Valeur par défaut |
+| Variable | Valeur par defaut |
 |----------|-------------------|
 | `ADMIN_USERNAME` | admin |
 | `ADMIN_PASSWORD` | admin123 |
+
+## Flux d'authentification
+
+```
+Frontend ── POST /api/auth/login/ ──> Task Service
+                                          │
+                                     verifie credentials
+                                     genere JWT contenant :
+                                     {username, role, permissions}
+                                          │
+Frontend <── {access (15min), refresh (7j)} ──┘
+    │
+    ├── Bearer token ──> Task Service (:8000)    simplejwt decode → request.user
+    │
+    └── Bearer token ──> Analytics Service (:8001) middleware PyJWT decode → request.user_permissions
+```
+
+Le JWT est autosuffisant : l'analytics-service n'a jamais besoin d'appeler le task-service pour verifier un token. Le refresh est automatique cote frontend via un interceptor Axios.
 
 ## Endpoints API
 
 ### Task Service (port 8000)
 
+Documentation interactive : http://localhost:8000/api/docs/
+
 #### Authentification
 
-| Méthode | URL | Description | Auth |
+| Methode | URL | Description | Auth |
 |---------|-----|-------------|------|
-| POST | /api/auth/login/ | Login (retourne access + refresh JWT) | Non |
-| POST | /api/auth/refresh/ | Refresh du token JWT | Non |
+| POST | `/api/auth/login/` | Login (retourne access + refresh JWT) | Non |
+| POST | `/api/auth/refresh/` | Rafraichir le token JWT | Non |
 
 #### Utilisateurs
 
-| Méthode | URL | Description | Auth |
+| Methode | URL | Description | Auth |
 |---------|-----|-------------|------|
-| GET | /api/users/me/ | Profil utilisateur connecté | Oui |
-| GET | /api/users/ | Liste des utilisateurs | Admin |
-| POST | /api/users/ | Créer un utilisateur | Admin |
-| GET | /api/users/{id}/ | Détail utilisateur | Oui |
-| PATCH | /api/users/{id}/ | Modification utilisateur | Admin |
-| DELETE | /api/users/{id}/ | Suppression utilisateur | Admin |
-| GET | /api/roles/ | Liste des rôles | Oui |
+| GET | `/api/users/me/` | Profil de l'utilisateur connecte | Authentifie |
+| PATCH | `/api/users/me/` | Modifier son profil (email, prenom, nom) | Authentifie |
+| GET | `/api/users/` | Liste des utilisateurs | Admin |
+| POST | `/api/users/` | Creer un utilisateur | Admin |
+| GET | `/api/users/{id}/` | Detail d'un utilisateur | Authentifie |
+| PATCH | `/api/users/{id}/` | Modifier un utilisateur | Admin |
+| DELETE | `/api/users/{id}/` | Supprimer un utilisateur | Admin |
+| GET | `/api/roles/` | Liste des roles | Authentifie |
 
-#### Tâches
+#### Taches
 
-| Méthode | URL | Description | Permission |
+| Methode | URL | Description | Permission |
 |---------|-----|-------------|------------|
-| GET | /api/tasks/ | Liste des tâches (filtrable) | task:read |
-| POST | /api/tasks/ | Créer une tâche | task:create |
-| GET | /api/tasks/{id}/ | Détail d'une tâche | task:read |
-| PUT | /api/tasks/{id}/ | Modifier une tâche | task:update |
-| PATCH | /api/tasks/{id}/ | Modification partielle | task:update |
-| DELETE | /api/tasks/{id}/ | Supprimer une tâche | task:delete |
+| GET | `/api/tasks/` | Liste des taches (paginee, filtrable) | task:read |
+| POST | `/api/tasks/` | Creer une tache | task:create |
+| GET | `/api/tasks/{id}/` | Detail d'une tache | task:read |
+| PUT | `/api/tasks/{id}/` | Modifier une tache | task:update |
+| PATCH | `/api/tasks/{id}/` | Modification partielle | task:update |
+| DELETE | `/api/tasks/{id}/` | Supprimer une tache | task:delete |
 
 **Filtres disponibles** : `status`, `priority`, `assigned_to`, `created_by`, `due_date_before`, `due_date_after`
+**Recherche** : `?search=` sur titre et description
+**Tri** : `?ordering=` sur created_at, updated_at, due_date, priority, status
 
 ### Analytics Service (port 8001)
 
-| Méthode | URL | Description | Permission |
+Documentation interactive : http://localhost:8001/api/analytics/docs/
+
+| Methode | URL | Description | Permission |
 |---------|-----|-------------|------------|
-| GET | /api/analytics/summary/ | Tâches par statut | analytics:read |
-| GET | /api/analytics/by-user/ | Tâches par utilisateur | analytics:read |
-| GET | /api/analytics/overdue/ | Tâches en retard | analytics:read |
+| GET | `/api/analytics/summary/` | Nombre de taches par statut | analytics:read |
+| GET | `/api/analytics/by-user/` | Nombre de taches par utilisateur | analytics:read |
+| GET | `/api/analytics/overdue/` | Taches en retard | analytics:read |
 
-## Rôles et permissions
+## Roles et permissions
 
-| Rôle | Permissions |
+| Role | Permissions |
 |------|-------------|
-| admin | user:create, user:read, user:update, user:delete, task:create, task:read, task:update, task:delete, analytics:read |
-| manager | task:create, task:read, task:update, task:delete, analytics:read |
-| member | task:create, task:read, task:update |
-| viewer | task:read, analytics:read |
+| **admin** | Toutes (9 permissions) |
+| **manager** | task:create, task:read, task:update, task:delete, analytics:read, user:read |
+| **member** | task:create, task:read, task:update, analytics:read, user:read |
+| **viewer** | task:read, analytics:read |
 
-### Règles métier
-- Un **member** ne peut modifier/supprimer que les tâches qu'il a créées ou qui lui sont assignées
-- Un **manager** ou **admin** peut modifier toutes les tâches
-- Le champ `created_by` est automatiquement rempli avec l'ID de l'utilisateur connecté
-- L'utilisateur **admin** est protégé : son rôle ne peut pas être changé, il ne peut pas être désactivé ni supprimé
+### Regles metier
+
+- Un **member** ne peut modifier/supprimer que les taches qu'il a creees ou qui lui sont assignees
+- Un **manager** ou **admin** peut modifier toutes les taches
+- Le champ `created_by` est automatiquement rempli avec l'ID de l'utilisateur connecte
+- L'utilisateur **admin** est protege : son role ne peut pas etre change, il ne peut pas etre desactive ni supprime
 
 ## Tests
 
 ```bash
-# Task service
-docker-compose exec task-service python manage.py test
+# Lancer les tests du task-service
+docker compose exec task-service python manage.py test
 
-# Analytics service
-docker-compose exec analytics-service python manage.py test
+# Lancer les tests d'une app specifique
+docker compose exec task-service python manage.py test users
+docker compose exec task-service python manage.py test tasks
 ```
 
-## Améliorations possibles
+Les tests couvrent :
+- **users** : creation d'utilisateur, login, refresh token, profil `/me`, permissions admin/member
+- **tasks** : CRUD complet, controle des permissions, logique de modification par role
 
-- **API Gateway** (Nginx/Traefik) : point d'entrée unique, TLS termination, rate limiting
-- **Cache Redis** : mise en cache des analytics, sessions
-- **CI/CD** : pipeline GitHub Actions avec lint, tests, build Docker, deploy
-- **Rate limiting** : protection contre les abus (django-ratelimit ou API Gateway)
-- **Monitoring** : Prometheus + Grafana, structured logging (JSON)
-- **Audit trail** : journalisation des actions utilisateur sur les tâches
-- **Refresh token rotation** : blacklist des anciens refresh tokens pour plus de sécurité
+## Variables d'environnement
+
+Voir [.env.example](.env.example) pour la liste complete :
+
+| Variable | Description | Defaut |
+|----------|-------------|--------|
+| `JWT_SECRET_KEY` | Secret partage entre les services pour signer/verifier les JWT | - |
+| `DB_NAME` | Nom de la base PostgreSQL | taskmanager_db |
+| `DB_USER` | Utilisateur PostgreSQL | taskmanager_user |
+| `DB_PASSWORD` | Mot de passe PostgreSQL | - |
+| `ADMIN_USERNAME` | Username du compte admin cree au demarrage | admin |
+| `ADMIN_PASSWORD` | Mot de passe du compte admin | - |
+| `DEBUG` | Mode debug (1 = dev, 0 = prod) | 1 |
+| `TASK_SERVICE_PORT` | Port du task-service | 8000 |
+| `ANALYTICS_SERVICE_PORT` | Port de l'analytics-service | 8001 |
+| `FRONTEND_PORT` | Port du frontend | 5173 |
+
+## Persistance
+
+Les donnees sont stockees dans un volume Docker (`db_data`). `docker compose down` conserve les donnees, `docker compose down -v` les supprime.
+
+## Ameliorations possibles
+
+- **Cache Redis** : mise en cache des analytics pour eviter les requetes d'agregation repetees
+- **CI/CD** : pipeline GitHub Actions (lint, tests, build Docker)
+- **Rate limiting** : protection contre les abus (django-ratelimit ou Nginx)
+- **Monitoring** : Prometheus + Grafana, structured logging
+- **Audit trail** : journalisation des actions sur les taches
+- **Refresh token rotation** : blacklist des anciens refresh tokens
