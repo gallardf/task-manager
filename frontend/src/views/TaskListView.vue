@@ -53,7 +53,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { taskApi } from '@/composables/useApi'
+import { api } from '@/composables/useApi'
 import TaskCard from '@/components/TaskCard.vue'
 import TaskFilters from '@/components/TaskFilters.vue'
 
@@ -74,7 +74,7 @@ async function fetchTasks() {
     Object.keys(params).forEach(key => {
       if (!params[key]) delete params[key]
     })
-    const response = await taskApi.get('/api/tasks/', { params })
+    const response = await api.get('/api/tasks/', { params })
     if (Array.isArray(response.data)) {
       tasks.value = response.data
       totalPages.value = 1
@@ -109,7 +109,7 @@ function editTask(task) {
 async function deleteTask(task) {
   if (!confirm(`Supprimer la tâche "${task.title}" ?`)) return
   try {
-    await taskApi.delete(`/api/tasks/${task.id}/`)
+    await api.delete(`/api/tasks/${task.id}/`)
     fetchTasks()
   } catch (error) {
     console.error('Failed to delete task:', error)

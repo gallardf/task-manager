@@ -36,7 +36,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
-import { authApi } from '@/composables/useApi'
+import { api } from '@/composables/useApi'
 
 const router = useRouter()
 const auth = useAuthStore()
@@ -50,7 +50,7 @@ async function handleLogin() {
   errorMessage.value = ''
   loading.value = true
   try {
-    const response = await authApi.post('/api/auth/login/', {
+    const response = await api.post('/api/auth/login/', {
       username: username.value,
       password: password.value
     })

@@ -8,6 +8,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from .models import User, Role
 from .permissions import IsAdmin
 from .serializers import (
+    ADMIN_USERNAME,
     CustomTokenObtainPairSerializer,
     RoleSerializer,
     UserSerializer,
@@ -63,7 +64,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
     def perform_update(self, serializer):
         user = self.get_object()
-        if user.username == "admin":
+        if user.username == ADMIN_USERNAME:
             if "role" in serializer.validated_data and serializer.validated_data["role"] != user.role:
                 raise serializers.ValidationError({"role": "Le rôle de l'administrateur principal ne peut pas être modifié."})
             if "is_active" in serializer.validated_data and not serializer.validated_data["is_active"]:

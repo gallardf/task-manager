@@ -141,7 +141,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
-import { authApi } from '@/composables/useApi'
+import { api } from '@/composables/useApi'
 
 const users = ref([])
 const roles = ref([])
@@ -162,8 +162,8 @@ const newUser = reactive({
 onMounted(async () => {
   try {
     const [usersRes, rolesRes] = await Promise.all([
-      authApi.get('/api/users/'),
-      authApi.get('/api/roles/')
+      api.get('/api/users/'),
+      api.get('/api/roles/')
     ])
     users.value = (Array.isArray(usersRes.data) ? usersRes.data : usersRes.data.results || []).map(u => ({
       ...u,
@@ -181,7 +181,7 @@ async function createUser() {
   createError.value = ''
   creating.value = true
   try {
-    const res = await authApi.post('/api/users/', newUser)
+    const res = await api.post('/api/users/', newUser)
     users.value.push({ ...res.data, _saving: false })
     showCreateForm.value = false
     newUser.username = ''
@@ -210,7 +210,7 @@ async function createUser() {
 async function updateField(user, field, value) {
   user._saving = true
   try {
-    await authApi.patch(`/api/users/${user.id}/`, { [field]: value })
+    await api.patch(`/api/users/${user.id}/`, { [field]: value })
   } catch (error) {
     console.error(`Failed to update ${field}:`, error)
     alert(`Erreur lors de la mise à jour de ${field}`)
@@ -222,7 +222,7 @@ async function updateField(user, field, value) {
 async function updateRole(user, newRole) {
   user._saving = true
   try {
-    await authApi.patch(`/api/users/${user.id}/`, { role: newRole })
+    await api.patch(`/api/users/${user.id}/`, { role: newRole })
     user.role = newRole
     user.role_name = roles.value.find(r => r.id === newRole)?.name
   } catch (error) {
@@ -237,7 +237,7 @@ async function deleteUser(user) {
   if (!confirm(`Supprimer l'utilisateur "${user.username}" ?`)) return
   user._saving = true
   try {
-    await authApi.delete(`/api/users/${user.id}/`)
+    await api.delete(`/api/users/${user.id}/`)
     users.value = users.value.filter(u => u.id !== user.id)
   } catch (error) {
     const detail = error.response?.data?.detail
@@ -251,7 +251,7 @@ async function toggleActive(user) {
   user._saving = true
   try {
     const newStatus = !user.is_active
-    await authApi.patch(`/api/users/${user.id}/`, { is_active: newStatus })
+    await api.patch(`/api/users/${user.id}/`, { is_active: newStatus })
     user.is_active = newStatus
   } catch (error) {
     console.error('Failed to toggle active status:', error)

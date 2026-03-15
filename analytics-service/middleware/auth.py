@@ -24,7 +24,10 @@ class JWTAuthMiddleware:
         if not auth_header.startswith("Bearer "):
             return JsonResponse({"detail": "Token manquant"}, status=401)
 
-        token = auth_header.split(" ")[1]
+        parts = auth_header.split(" ")
+        if len(parts) != 2:
+            return JsonResponse({"detail": "Token invalide"}, status=401)
+        token = parts[1]
         try:
             payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=["HS256"])
         except jwt.ExpiredSignatureError:

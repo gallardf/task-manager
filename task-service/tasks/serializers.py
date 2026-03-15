@@ -4,11 +4,6 @@ from .models import Task
 
 class TaskSerializer(serializers.ModelSerializer):
     """Serializer for Task model."""
-    assigned_to = serializers.IntegerField(
-        required=True,
-        help_text="ID de l'utilisateur assigné (obligatoire).",
-    )
-
     class Meta:
         model = Task
         fields = [

@@ -55,8 +55,4 @@ function attachInterceptors(instance) {
 attachInterceptors(api)
 attachInterceptors(analyticsApi)
 
-// Backward-compatible aliases
-const authApi = api
-const taskApi = api
-
-export { api, analyticsApi, authApi, taskApi }
+export { api, analyticsApi }

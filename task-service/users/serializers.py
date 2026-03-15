@@ -1,7 +1,18 @@
+import os
+
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from .models import User, Role, Permission
+
+ADMIN_USERNAME = os.environ.get("ADMIN_USERNAME", "admin")
+
+
+def validate_reserved_username(self, value):
+    """Reject the protected admin username."""
+    if value.lower() == ADMIN_USERNAME.lower():
+        raise serializers.ValidationError(f"Le nom d'utilisateur '{ADMIN_USERNAME}' est réservé.")
+    return value
 
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -53,10 +64,7 @@ class UserCreateSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "password", "email", "first_name", "last_name", "role"]
         read_only_fields = ["id"]
 
-    def validate_username(self, value):
-        if value.lower() == "admin":
-            raise serializers.ValidationError("Le nom d'utilisateur 'admin' est réservé.")
-        return value
+    validate_username = validate_reserved_username
 
     def create(self, validated_data):
         return User.objects.create_user(**validated_data)
@@ -70,10 +78,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "email", "first_name", "last_name", "role", "is_active"]
         read_only_fields = ["id", "username"]
 
-    def validate_username(self, value):
-        if value.lower() == "admin":
-            raise serializers.ValidationError("Le nom d'utilisateur 'admin' est réservé.")
-        return value
+    validate_username = validate_reserved_username
 
 class UserSelfUpdateSerializer(serializers.ModelSerializer):
 

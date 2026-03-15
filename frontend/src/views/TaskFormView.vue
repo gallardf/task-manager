@@ -87,7 +87,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { authApi, taskApi } from '@/composables/useApi'
+import { api } from '@/composables/useApi'
 
 const route = useRoute()
 const router = useRouter()
@@ -110,7 +110,7 @@ const form = reactive({
 
 onMounted(async () => {
   try {
-    const usersRes = await authApi.get('/api/users/')
+    const usersRes = await api.get('/api/users/')
     users.value = Array.isArray(usersRes.data) ? usersRes.data : usersRes.data.results || []
   } catch (err) {
     console.warn('Could not load users list:', err.response?.status, err.message)
@@ -119,7 +119,7 @@ onMounted(async () => {
   if (isEditMode.value) {
     loadingTask.value = true
     try {
-      const response = await taskApi.get(`/api/tasks/${route.params.id}/`)
+      const response = await api.get(`/api/tasks/${route.params.id}/`)
       const task = response.data
       form.title = task.title || ''
       form.description = task.description || ''
@@ -150,9 +150,9 @@ async function handleSubmit() {
 
   try {
     if (isEditMode.value) {
-      await taskApi.put(`/api/tasks/${route.params.id}/`, payload)
+      await api.put(`/api/tasks/${route.params.id}/`, payload)
     } else {
-      await taskApi.post('/api/tasks/', payload)
+      await api.post('/api/tasks/', payload)
     }
     router.push('/tasks')
   } catch (error) {
